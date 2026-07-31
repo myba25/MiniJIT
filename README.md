@@ -1,6 +1,6 @@
 # MiniJIT
 
-[![CI](https://github.com/USERNAME/MiniJIT/actions/workflows/ci.yml/badge.svg)](https://github.com/USERNAME/MiniJIT/actions/workflows/ci.yml)
+[![CI](https://github.com/myba25/MiniJIT/actions/workflows/ci.yml/badge.svg)](https://github.com/myba25/MiniJIT/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A just-in-time compiler for a small imperative language. The frontend is Java,
