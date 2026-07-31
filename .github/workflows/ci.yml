@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  frontend:
+    name: Java frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Unit tests
+        run: mvn -B -f java/pom.xml test
+
+      - name: Package
+        run: mvn -B -f java/pom.xml package -DskipTests
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: minijit-jar
+          path: java/target/minijit-*.jar
+
+  backend:
+    name: C++ backend and end-to-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      # Ubuntu ships LLVM development packages, so no source build is needed
+      # here. On Windows the same step means vcpkg and about an hour.
+      - name: Install LLVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev
+
+      - name: Configure
+        run: cmake -B cpp/build -S cpp -DCMAKE_BUILD_TYPE=Release -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
+
+      - name: Build
+        run: cmake --build cpp/build --parallel
+
+      - name: Build frontend
+        run: mvn -B -f java/pom.xml package -DskipTests
+
+      - name: End-to-end
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jar=$(ls java/target/minijit-*.jar)
+          backend=cpp/build/minijit-backend
+          libdir=$(dirname "$(find cpp/build -name 'libminijit_jni.so' | head -1)")
+
+          # program:expected
+          cases="fib.mini:55 sum.mini:111 gcd.mini:21 mutual.mini:2 nested.mini:42"
+          failed=0
+
+          check() {
+            local name="$1" expected="$2" actual="$3"
+            if [ "$actual" = "$expected" ]; then
+              echo "  PASS  $name"
+            else
+              echo "  FAIL  $name - expected $expected, got $actual"
+              failed=1
+            fi
+          }
+
+          echo "Via the standalone backend"
+          for case in $cases; do
+            file="${case%%:*}"
+            expected="${case##*:}"
+            java -jar "$jar" -o "/tmp/$file.json" "examples/$file"
+            check "$file" "$expected" "$($backend --run "/tmp/$file.json")"
+            check "$file --no-opt" "$expected" "$($backend --run --no-opt "/tmp/$file.json")"
+          done
+
+          echo "Via the JNI bridge"
+          for case in $cases; do
+            file="${case%%:*}"
+            expected="${case##*:}"
+            check "$file" "$expected" \
+              "$(java "-Djava.library.path=$libdir" -jar "$jar" --run "examples/$file")"
+          done
+
+          echo "Error handling"
+          printf 'fn f() { let x = 5 }\n' > /tmp/bad.mini
+          if java -jar "$jar" -o /tmp/bad.json /tmp/bad.mini 2>/dev/null; then
+            echo "  FAIL  syntax error should exit nonzero"
+            failed=1
+          else
+            echo "  PASS  syntax error rejected"
+          fi
+
+          printf 'fn main() { return nope; }\n' > /tmp/unknown.mini
+          java -jar "$jar" -o /tmp/unknown.json /tmp/unknown.mini
+          if $backend --run /tmp/unknown.json 2>/dev/null; then
+            echo "  FAIL  unknown variable should exit nonzero"
+            failed=1
+          else
+            echo "  PASS  unknown variable rejected"
+          fi
+
+          exit $failed
