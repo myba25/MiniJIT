@@ -1,0 +1,14 @@
+// Iterative sum 1..n — exercises let, while, assignment, arithmetic precedence.
+fn sum(n) {
+  let total = 0;
+  let i = 1;
+  while (i <= n) {
+    total = total + i;
+    i = i + 1;
+  }
+  return total;
+}
+
+fn main() {
+  return sum(10) * 2 + 1;
+}

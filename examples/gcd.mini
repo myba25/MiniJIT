@@ -1,0 +1,13 @@
+// Euclid's algorithm — exercises %, while, and multiple assignments per iteration.
+fn gcd(a, b) {
+  while (b != 0) {
+    let t = b;
+    b = a % b;
+    a = t;
+  }
+  return a;
+}
+
+fn main() {
+  return gcd(1071, 462);   // 21
+}

@@ -1,0 +1,19 @@
+// Mutual recursion: isEven calls isOdd, which is declared later in the file.
+// This only works because codegen declares every prototype before emitting bodies.
+fn isEven(n) {
+  if (n == 0) {
+    return 1;
+  }
+  return isOdd(n - 1);
+}
+
+fn isOdd(n) {
+  if (n == 0) {
+    return 0;
+  }
+  return isEven(n - 1);
+}
+
+fn main() {
+  return isEven(10) + isOdd(7);   // 1 + 1 = 2
+}
