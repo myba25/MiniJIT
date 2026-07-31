@@ -1,0 +1,24 @@
+# Java / Maven
+java/target/
+tools/
+
+# C++ / CMake
+cpp/build/
+cpp/cmake-build-*/
+compile_commands.json
+
+# Generated AST dumps from ad-hoc runs
+*.json
+!java/**/*.json
+bad.mini
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.vs/
+CMakeSettings.json
+
+# OS
+Thumbs.db
+.DS_Store
